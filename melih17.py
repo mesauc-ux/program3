@@ -9545,7 +9545,7 @@ HTML_TEMPLATE = '''
         // ═══════════════════════════════════════════════════════════
         // 🔍 ÖĞRENCİNİN BELİRLİ SAATTEKİ ÇAKIŞMALARINI BUL
         // ═══════════════════════════════════════════════════════════
-        function findStudentConflictsAtTime(studentName, targetDay, targetTime, excludeCell, studentClass = null) {
+        function findStudentConflictsAtTime(studentName, targetDay, targetTime, excludeCell, studentClass = null, excludeCell2 = null) {
             const conflicts = [];
             const table = document.getElementById('weeklyPrintTable');
             if (!table) return conflicts;
@@ -9555,8 +9555,8 @@ HTML_TEMPLATE = '''
             const cells = table.querySelectorAll('tbody td:not(:first-child)');
 
             cells.forEach(cell => {
-                // ✅ Exclude edilen cell'i atla (öğrencinin eski konumu)
-                if (cell === excludeCell) return;
+                // ✅ Exclude edilen cell'leri atla (swap edilecek yerler)
+                if (cell === excludeCell || cell === excludeCell2) return;
                 
                 const cellText = cell.textContent.trim();
                 if (!cellText) return;
@@ -9826,8 +9826,9 @@ HTML_TEMPLATE = '''
                     studentName,
                     swapPendingData.targetDay,
                     swapPendingData.targetTime,
-                    targetCell,  // Bu slotu hariç tut
-                    studentClass
+                    targetCell,  // Hedef slotu hariç tut
+                    studentClass,
+                    draggedCell  // 🆕 Kaynak slotu da hariç tut (swap edilecek!)
                 );
 
                 console.log(`🔎 ${studentName} için DOM'da çakışma: ${conflicts.length}`);
@@ -9847,8 +9848,9 @@ HTML_TEMPLATE = '''
                     studentName,
                     draggedData.day,
                     draggedData.time,
-                    draggedCell,  // Bu slotu hariç tut
-                    studentClass
+                    draggedCell,  // Kaynak slotu hariç tut
+                    studentClass,
+                    targetCell  // 🆕 Hedef slotu da hariç tut (swap edilecek!)
                 );
 
                 console.log(`🔎 ${studentName} için DOM'da çakışma: ${conflicts.length}`);

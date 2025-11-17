@@ -17872,15 +17872,29 @@ def swap_lessons():
     teachers_db = cursor.fetchall()
     conn.close()
 
-    # Öğretmen isimlerinden branch bilgilerini bul
-    source_branch = None
-    target_branch = None
+    # Öğretmen dictionary oluştur (daha hızlı eşleşme için)
+    teachers_dict = {}
     for teacher_row in teachers_db:
-        teacher_full_name = f"{teacher_row['name']} {teacher_row['surname']}"
-        if teacher_full_name == source_teacher:
-            source_branch = teacher_row['branch']
-        if target.get('teacher') and teacher_full_name == target.get('teacher'):
-            target_branch = teacher_row['branch']
+        # Boşlukları normalize et (çift boşluk → tek boşluk)
+        teacher_full_name = f"{teacher_row['name']} {teacher_row['surname']}".strip()
+        teacher_full_name = ' '.join(teacher_full_name.split())  # Çoklu boşlukları tek boşluğa çevir
+        teachers_dict[teacher_full_name] = teacher_row['branch']
+
+    # Kaynak ve hedef öğretmenlerin branch bilgilerini bul
+    source_teacher_clean = ' '.join(source_teacher.split()).strip() if source_teacher else ''
+    target_teacher_clean = ' '.join(target.get('teacher', '').split()).strip() if target.get('teacher') else ''
+
+    source_branch = teachers_dict.get(source_teacher_clean)
+    target_branch = teachers_dict.get(target_teacher_clean)
+
+    # 🐛 DEBUG: Eğer branch bulunamadıysa konsola yaz
+    if source_teacher and not source_branch:
+        print(f"⚠️ UYARI: Kaynak öğretmen branch bulunamadı: '{source_teacher}' → '{source_teacher_clean}'")
+        print(f"   Mevcut öğretmenler: {list(teachers_dict.keys())}")
+
+    if target.get('teacher') and not target_branch:
+        print(f"⚠️ UYARI: Hedef öğretmen branch bulunamadı: '{target.get('teacher')}' → '{target_teacher_clean}'")
+        print(f"   Mevcut öğretmenler: {list(teachers_dict.keys())}")
 
     # HEDEF BOSSA (target.student None ise)
     if not target.get('student'):
@@ -17950,21 +17964,35 @@ def swap_lessons():
     temp_teacher = source_teacher  # ✅ Kaynak öğretmeni de sakla
     temp_branch = source_branch  # 🆕 Kaynak branşı da sakla
 
+    # 🐛 DEBUG: Swap işlemi hakkında bilgi
+    print(f"🔄 SWAP İŞLEMİ:")
+    print(f"   Kaynak: {temp_teacher} ({temp_branch}) - {temp_day} {temp_time}")
+    print(f"   Hedef: {target_teacher} ({target_branch}) - {target['day']} {target['time']}")
+    print(f"   Kaynak ders sayısı: {len(source_lessons)}, Hedef ders sayısı: {len(target_lessons)}")
+
     # Kaynak dersleri hedef slota taşı
     for lesson in source_lessons:
+        old_branch = lesson.get('branch', 'YOK')
         lesson['day'] = target['day']
         lesson['time'] = target['time']
         lesson['teacher_name'] = target_teacher  # ✅ Hedef öğretmene değiştir
         if target_branch:  # 🆕 Hedef branşı da değiştir
             lesson['branch'] = target_branch
+            print(f"   ✓ {lesson.get('student_name')}: Branch '{old_branch}' → '{target_branch}'")
+        else:
+            print(f"   ⚠️ {lesson.get('student_name')}: Branch değiştirilemedi (hedef branch bulunamadı)")
 
     # Hedef dersleri kaynak slota taşı
     for lesson in target_lessons:
+        old_branch = lesson.get('branch', 'YOK')
         lesson['day'] = temp_day
         lesson['time'] = temp_time
         lesson['teacher_name'] = temp_teacher  # ✅ Kaynak öğretmene değiştir
         if temp_branch:  # 🆕 Kaynak branşı da değiştir
             lesson['branch'] = temp_branch
+            print(f"   ✓ {lesson.get('student_name')}: Branch '{old_branch}' → '{temp_branch}'")
+        else:
+            print(f"   ⚠️ {lesson.get('student_name')}: Branch değiştirilemedi (kaynak branch bulunamadı)")
 
     swap_type = ''
     if source_is_class and target_is_class:

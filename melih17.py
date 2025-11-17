@@ -17865,6 +17865,23 @@ def swap_lessons():
     source_student_names = source.get('studentNames', [source.get('student')])
     source_teacher = source.get('teacher', '')  # ✅ Kaynak öğretmen bilgisi
 
+    # 🆕 ÖĞRETMENLERİN BRANCH BİLGİLERİNİ VERİTABANINDAN ÇEK
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT name, surname, branch FROM teachers')
+    teachers_db = cursor.fetchall()
+    conn.close()
+
+    # Öğretmen isimlerinden branch bilgilerini bul
+    source_branch = None
+    target_branch = None
+    for teacher_row in teachers_db:
+        teacher_full_name = f"{teacher_row['name']} {teacher_row['surname']}"
+        if teacher_full_name == source_teacher:
+            source_branch = teacher_row['branch']
+        if target.get('teacher') and teacher_full_name == target.get('teacher'):
+            target_branch = teacher_row['branch']
+
     # HEDEF BOSSA (target.student None ise)
     if not target.get('student'):
         # BOŞ SLOTA TAŞIMA - SINIF veya BİREYSEL
@@ -17931,18 +17948,23 @@ def swap_lessons():
     temp_day = source['day']
     temp_time = source['time']
     temp_teacher = source_teacher  # ✅ Kaynak öğretmeni de sakla
+    temp_branch = source_branch  # 🆕 Kaynak branşı da sakla
 
     # Kaynak dersleri hedef slota taşı
     for lesson in source_lessons:
         lesson['day'] = target['day']
         lesson['time'] = target['time']
         lesson['teacher_name'] = target_teacher  # ✅ Hedef öğretmene değiştir
+        if target_branch:  # 🆕 Hedef branşı da değiştir
+            lesson['branch'] = target_branch
 
     # Hedef dersleri kaynak slota taşı
     for lesson in target_lessons:
         lesson['day'] = temp_day
         lesson['time'] = temp_time
         lesson['teacher_name'] = temp_teacher  # ✅ Kaynak öğretmene değiştir
+        if temp_branch:  # 🆕 Kaynak branşı da değiştir
+            lesson['branch'] = temp_branch
 
     swap_type = ''
     if source_is_class and target_is_class:
